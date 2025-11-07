@@ -1,0 +1,30 @@
+{
+  "name": "iptv-electron-app",
+  "version": "1.0.0",
+  "description": "Aplicación IPTV moderna con Electron",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "build-win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.juandualibe.iptv-electron-app",
+    "productName": "IPTV Electron App",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable"
+    }
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "video.js": "^8.23.4"
+  }
+}

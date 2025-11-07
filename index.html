@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Player - Electron</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.0.4/video-js.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Barra superior personalizada -->
+    <div class="titlebar">
+        <div class="titlebar-drag">
+            <div class="app-title">
+                <i class="fas fa-tv"></i>
+                IPTV Player
+            </div>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-button minimize" onclick="minimizeWindow()">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="titlebar-button maximize" onclick="maximizeWindow()">
+                <i class="fas fa-square"></i>
+            </button>
+            <button class="titlebar-button close" onclick="closeWindow()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Panel lateral izquierdo - Categorías -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+    <h3><i class="fas fa-list"></i> Categorías</h3>
+    <div class="playlist-actions">
+        <button class="btn-add-playlist" onclick="showAddPlaylistModal()">
+            <i class="fas fa-plus"></i> Agregar Lista
+        </button>
+        <button class="btn-export-playlist" onclick="showExportOptions()" title="Exportar/Gestionar">
+            <i class="fas fa-download"></i>
+        </button>
+        <button class="btn-remove-playlist" onclick="showRemoveOptions()" title="Gestionar listas">
+            <i class="fas fa-cog"></i>
+        </button>
+    </div>
+</div>
+
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Buscar canales..." onkeyup="searchChannels()">
+                <i class="fas fa-search search-icon"></i>
+            </div>
+
+            <div class="categories-list" id="categoriesList">
+                <div class="category-item active" onclick="selectCategory('all')">
+                    <i class="fas fa-th-large"></i>
+                    <span>Todos los canales</span>
+                    <span class="channel-count" id="allCount">0</span>
+                </div>
+                <div class="category-item" onclick="selectCategory('favorites')">
+                    <i class="fas fa-heart"></i>
+                    <span>Favoritos</span>
+                    <span class="channel-count" id="favCount">0</span>
+                </div>
+                <!-- Las categorías se cargarán dinámicamente aquí -->
+            </div>
+        </div>
+
+        <!-- Panel central - Lista de canales -->
+        <div class="channels-panel">
+            <div class="channels-header">
+                <h3 id="currentCategoryTitle">Todos los canales</h3>
+                <div class="view-controls">
+                    <button class="view-btn active" onclick="setView('grid')" title="Vista de cuadrícula">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="view-btn" onclick="setView('list')" title="Vista de lista">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="channels-grid" id="channelsContainer">
+                <!-- Los canales se cargarán dinámicamente aquí -->
+                <div class="no-channels">
+                    <i class="fas fa-tv"></i>
+                    <h3>No hay canales cargados</h3>
+                    <p>Agrega una lista M3U para comenzar</p>
+                    <button class="btn-primary" onclick="showAddPlaylistModal()">
+                        <i class="fas fa-plus"></i> Agregar Lista M3U
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel derecho - Reproductor -->
+        <div class="player-panel">
+            <div class="player-header">
+                <h3 id="currentChannelName">Selecciona un canal</h3>
+                <div class="player-controls-top">
+                    <button class="btn-control" onclick="toggleFavorite()" id="favoriteBtn" title="Agregar a favoritos">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <button class="btn-control" onclick="openInVLC()" id="vlcBtn" title="Abrir en VLC"
+                        style="display: none;">
+                        <i class="fas fa-external-link-alt"></i>
+                    </button>
+                    <button class="btn-control" onclick="copyStreamUrl()" id="copyBtn" title="Copiar URL del stream"
+                        style="display: none;">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="btn-control" onclick="toggleFullscreen()" title="Pantalla completa">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="video-container">
+                <!-- Video.js player -->
+                <video id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto" width="400"
+                    height="300" data-setup='{"fluid": true, "responsive": true}'>
+                    <p class="vjs-no-js">
+                        Para ver este video necesitas activar JavaScript, o actualizarte a un
+                        <a href="https://videojs.com/html5-video-support/" target="_blank">
+                            navegador que soporte HTML5 video
+                        </a>.
+                    </p>
+                </video>
+
+                <div class="video-overlay" id="videoOverlay">
+                    <div class="video-placeholder">
+                        <i class="fas fa-play-circle"></i>
+                        <h3>Reproductor IPTV</h3>
+                        <p>Selecciona un canal para comenzar</p>
+                        <div class="connection-status" id="connectionStatus"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="now-playing" id="nowPlaying" style="display: none;">
+                <div class="channel-info">
+                    <img id="channelLogo" src="" alt="Logo del canal">
+                    <div class="channel-details">
+                        <h4 id="channelTitle">Nombre del Canal</h4>
+                        <p id="channelCategory">Categoría</p>
+                        <p id="streamUrl" style="font-size: 11px; color: var(--text-muted); word-break: break-all;"></p>
+                    </div>
+                </div>
+                <!-- AQUÍ SE AGREGARÁ LA INFO EPG DINÁMICAMENTE -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para agregar playlist CON EPG OPCIONAL -->
+    <div class="modal" id="addPlaylistModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus"></i> Agregar Lista M3U / EPG</h3>
+                <button class="modal-close" onclick="hideAddPlaylistModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="playlistUrl">
+                        <i class="fas fa-list"></i> URL de la lista M3U (opcional):
+                    </label>
+                    <input type="text" id="playlistUrl" placeholder="https://ejemplo.com/playlist.m3u"
+                        autocomplete="off" spellcheck="false" onkeydown="handlePlaylistUrlKeydown(event)">
+                    <small class="input-help">Lista de canales en formato M3U</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="epgUrl">
+                        <i class="fas fa-tv"></i> URL del EPG (opcional):
+                    </label>
+                    <input type="text" id="epgUrl" placeholder="http://epghub.xyz/epg/EPG-UY.xml.gz" autocomplete="off"
+                        spellcheck="false">
+                    <small class="input-help">Guía electrónica de programas (XML o XML.GZ)</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="playlistName">
+                        <i class="fas fa-tag"></i> Nombre de la lista (opcional):
+                    </label>
+                    <input type="text" id="playlistName" placeholder="Mi Lista IPTV" autocomplete="off"
+                        spellcheck="false">
+                    <small class="input-help">Nombre para identificar esta lista</small>
+                </div>
+
+                <div class="modal-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Puedes cargar solo M3U, solo EPG, o ambos</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="hideAddPlaylistModal()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button class="btn-primary" onclick="loadPlaylist()" id="loadBtn">
+                    <i class="fas fa-download"></i> Cargar
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal de gestión de listas -->
+<div class="modal management-modal" id="managementModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-cog"></i> Gestionar Listas</h3>
+            <button class="modal-close" onclick="hideManagementModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="managementBody">
+            <!-- El contenido se genera dinámicamente -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="hideManagementModal()">
+                <i class="fas fa-times"></i> Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de exportación -->
+<div class="modal" id="exportModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-download"></i> Exportar Lista M3U</h3>
+            <button class="modal-close" onclick="hideExportModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="exportBody">
+            <!-- El contenido se genera dinámicamente -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="hideExportModal()">
+                <i class="fas fa-times"></i> Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar playlist CON ARCHIVO LOCAL -->
+<div class="modal" id="addPlaylistModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> Agregar Lista M3U + EPG</h3>
+            <button class="modal-close" onclick="hideAddPlaylistModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <!-- Pestañas para alternar entre URL y Archivo -->
+            <div class="input-tabs">
+                <button class="tab-button active" onclick="switchTab('url')">
+                    <i class="fas fa-link"></i> Desde URL
+                </button>
+                <button class="tab-button" onclick="switchTab('file')">
+                    <i class="fas fa-upload"></i> Desde Archivo
+                </button>
+            </div>
+            
+            <!-- Contenido para URL -->
+            <div id="urlTab" class="tab-content active">
+                <div class="input-group">
+                    <label for="playlistUrl">
+                        <i class="fas fa-list"></i> URL de la lista M3U (opcional):
+                    </label>
+                    <input type="text" id="playlistUrl" 
+                           placeholder="https://ejemplo.com/playlist.m3u" 
+                           autocomplete="off" spellcheck="false"
+                           onkeydown="handlePlaylistUrlKeydown(event)">
+                    <small class="input-help">Lista de canales en formato M3U</small>
+                </div>
+                
+                <div class="input-group">
+                    <label for="epgUrl">
+                        <i class="fas fa-tv"></i> URL del EPG (opcional):
+                    </label>
+                    <input type="text" id="epgUrl" 
+                           placeholder="http://epghub.xyz/epg/EPG-UY.xml.gz" 
+                           autocomplete="off" spellcheck="false">
+                    <small class="input-help">Guía electrónica de programas (XML o XML.GZ)</small>
+                </div>
+            </div>
+            
+            <!-- Contenido para Archivo -->
+            <div id="fileTab" class="tab-content">
+                <div class="input-group">
+                    <label for="playlistFile">
+                        <i class="fas fa-file-upload"></i> Archivo M3U desde tu PC:
+                    </label>
+                    <div class="file-upload-area" onclick="document.getElementById('playlistFile').click()">
+                        <input type="file" id="playlistFile" accept=".m3u,.m3u8,.txt" style="display: none;" onchange="handleFileSelect(event)">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Haz clic aquí para seleccionar archivo M3U</p>
+                            <small>Formatos soportados: .m3u, .m3u8, .txt</small>
+                        </div>
+                    </div>
+                    <div id="fileInfo" class="file-info" style="display: none;">
+                        <i class="fas fa-file"></i>
+                        <span id="fileName"></span>
+                        <span id="fileSize"></span>
+                        <button type="button" onclick="clearFileSelection()" class="clear-file">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="epgUrlFile">
+                        <i class="fas fa-tv"></i> URL del EPG (opcional):
+                    </label>
+                    <input type="text" id="epgUrlFile" 
+                           placeholder="http://epghub.xyz/epg/EPG-UY.xml.gz" 
+                           autocomplete="off" spellcheck="false">
+                    <small class="input-help">Guía electrónica de programas (XML o XML.GZ)</small>
+                </div>
+            </div>
+            
+            <!-- Nombre común para ambas pestañas -->
+            <div class="input-group">
+                <label for="playlistName">
+                    <i class="fas fa-tag"></i> Nombre de la lista (opcional):
+                </label>
+                <input type="text" id="playlistName" 
+                       placeholder="Mi Lista IPTV"
+                       autocomplete="off" spellcheck="false">
+                <small class="input-help">Nombre para identificar esta lista</small>
+            </div>
+            
+            <div class="modal-info">
+                <i class="fas fa-info-circle"></i>
+                <span>Puedes cargar desde URL, archivo local, solo EPG, o combinaciones</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="hideAddPlaylistModal()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button class="btn-primary" onclick="loadPlaylist()" id="loadBtn">
+                <i class="fas fa-download"></i> Cargar
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p id="loadingText">Cargando lista M3U...</p>
+        </div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/8.0.4/video.js"></script>
+    <script src="renderer.js"></script>
+</body>
+
+</html>
