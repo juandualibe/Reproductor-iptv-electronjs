@@ -58,7 +58,7 @@ npm run dev
 
 ## 🧱 Crear un ejecutable (Windows — portable .exe)
 
-Tu `package.json` ya incluye scripts y configuración para generar un ejecutable Windows portable usando **electron-builder**:
+El fichero `package.json` ya incluye scripts y configuración para generar un ejecutable Windows portable usando **electron-builder**:
 
 ```json
 "scripts": {
